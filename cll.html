@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Campo Minado</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      background: #f4f4f4;
+      margin: 0;
+      padding: 10px;
+    }
+
+    h1 {
+      margin-top: 20px;
+    }
+
+    #board {
+      display: grid;
+      grid-template-columns: repeat(10, 35px);
+      gap: 4px;
+      justify-content: center;
+      margin: 20px auto;
+    }
+
+    .cell {
+      width: 35px;
+      height: 35px;
+      background-color: #ccc;
+      border: 1px solid #999;
+      font-size: 18px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .revealed {
+      background-color: #eee;
+    }
+
+    .mine {
+      background-color: red;
+      color: white;
+    }
+
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Campo Minado</h1>
+  <button onclick="startGame()">Reiniciar</button>
+  <div id="board"></div>
+
+  <script>
+    const size = 10;
+    const mines = 20;
+    let board = [];
+
+    function startGame() {
+      const boardEl = document.getElementById("board");
+      boardEl.innerHTML = '';
+      board = [];
+
+      for (let i = 0; i < size; i++) {
+        board[i] = [];
+        for (let j = 0; j < size; j++) {
+          board[i][j] = { mine: false, revealed: false };
+        }
+      }
+
+      let placed = 0;
+      while (placed < mines) {
+        let r = Math.floor(Math.random() * size);
+        let c = Math.floor(Math.random() * size);
+        if (!board[r][c].mine) {
+          board[r][c].mine = true;
+          placed++;
+        }
+      }
+
+      for (let i = 0; i < size; i++) {
+        for (let j = 0; j < size; j++) {
+          const cell = document.createElement("div");
+          cell.className = "cell";
+          cell.onclick = () => reveal(i, j, cell);
+          boardEl.appendChild(cell);
+        }
+      }
+    }
+
+    function reveal(x, y, el) {
+      if (board[x][y].revealed) return;
+      board[x][y].revealed = true;
+
+      if (board[x][y].mine) {
+        el.classList.add("mine");
+        el.textContent = "💣";
+        setTimeout(() => alert("Você perdeu!"), 100);
+        return;
+      }
+
+      el.classList.add("revealed");
+      let count = countMines(x, y);
+      if (count > 0) el.textContent = count;
+    }
+
+    function countMines(x, y) {
+      let total = 0;
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          let nx = x + dx;
+          let ny = y + dy;
+          if (nx >= 0 && nx < size && ny >= 0 && ny < size) {
+            if (board[nx][ny].mine) total++;
+          }
+        }
+      }
+      return total;
+    }
+
+    startGame();
+  </script>
+
+</body>
+</html>
