@@ -2,131 +2,184 @@
 <html lang="pt-br">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Campo Minado</title>
   <style>
     body {
-      font-family: sans-serif;
+      font-family: Arial, sans-serif;
       text-align: center;
-      background: #f4f4f4;
       margin: 0;
-      padding: 10px;
+      padding: 0;
+      background: #f2f2f2;
     }
-
     h1 {
       margin-top: 20px;
     }
-
-    #board {
-      display: grid;
-      grid-template-columns: repeat(10, 35px);
-      gap: 4px;
-      justify-content: center;
-      margin: 20px auto;
-    }
-
-    .cell {
-      width: 35px;
-      height: 35px;
-      background-color: #ccc;
-      border: 1px solid #999;
+    #status {
+      margin: 10px;
       font-size: 18px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      cursor: pointer;
     }
-
-    .revealed {
+    #tabuleiro {
+      display: grid;
+      margin: 20px auto;
+      gap: 2px;
+      touch-action: manipulation;
+    }
+    .celula {
+      width: 32px;
+      height: 32px;
+      background-color: #ccc;
+      text-align: center;
+      line-height: 32px;
+      font-weight: bold;
+      border: none;
+      font-size: 18px;
+    }
+    .revelada {
       background-color: #eee;
     }
-
-    .mine {
-      background-color: red;
-      color: white;
+    .bomba {
+      background: red;
     }
-
+    .bandeira::after {
+      content: "🚩";
+    }
     button {
-      padding: 10px 20px;
-      font-size: 16px;
+      margin-top: 10px;
+      padding: 8px 16px;
     }
   </style>
 </head>
 <body>
-
   <h1>Campo Minado</h1>
-  <button onclick="startGame()">Reiniciar</button>
-  <div id="board"></div>
+  <div id="status">⏱️ Tempo: <span id="tempo">0</span>s | 💣 Minas restantes: <span id="minas"></span></div>
+  <div id="tabuleiro"></div>
+  <button onclick="iniciar()">Reiniciar</button>
 
   <script>
-    const size = 10;
-    const mines = 20;
-    let board = [];
+    const tamanho = 10; // 10x10
+    const bombas = 15;
+    let campo = [];
+    let tempo = 0, timer;
+    let minasRestantes = bombas;
+    let reveladas = 0;
 
-    function startGame() {
-      const boardEl = document.getElementById("board");
-      boardEl.innerHTML = '';
-      board = [];
+    const iniciar = () => {
+      clearInterval(timer);
+      document.getElementById("tempo").textContent = 0;
+      document.getElementById("status").style.color = "black";
+      campo = [];
+      tempo = 0;
+      minasRestantes = bombas;
+      reveladas = 0;
+      document.getElementById("minas").textContent = minasRestantes;
 
-      for (let i = 0; i < size; i++) {
-        board[i] = [];
-        for (let j = 0; j < size; j++) {
-          board[i][j] = { mine: false, revealed: false };
+      const tabuleiro = document.getElementById("tabuleiro");
+      tabuleiro.innerHTML = "";
+      tabuleiro.style.gridTemplateColumns = `repeat(${tamanho}, 32px)`;
+
+      for (let i = 0; i < tamanho; i++) {
+        campo[i] = [];
+        for (let j = 0; j < tamanho; j++) {
+          campo[i][j] = { bomba: false, vizinhos: 0, revelado: false, bandeira: false };
         }
       }
 
-      let placed = 0;
-      while (placed < mines) {
-        let r = Math.floor(Math.random() * size);
-        let c = Math.floor(Math.random() * size);
-        if (!board[r][c].mine) {
-          board[r][c].mine = true;
-          placed++;
-        }
-      }
+      for (let b = 0; b < bombas; b++) {
+        let i, j;
+        do {
+          i = Math.floor(Math.random() * tamanho);
+          j = Math.floor(Math.random() * tamanho);
+        } while (campo[i][j].bomba);
+        campo[i][j].bomba = true;
 
-      for (let i = 0; i < size; i++) {
-        for (let j = 0; j < size; j++) {
-          const cell = document.createElement("div");
-          cell.className = "cell";
-          cell.onclick = () => reveal(i, j, cell);
-          boardEl.appendChild(cell);
-        }
-      }
-    }
-
-    function reveal(x, y, el) {
-      if (board[x][y].revealed) return;
-      board[x][y].revealed = true;
-
-      if (board[x][y].mine) {
-        el.classList.add("mine");
-        el.textContent = "💣";
-        setTimeout(() => alert("Você perdeu!"), 100);
-        return;
-      }
-
-      el.classList.add("revealed");
-      let count = countMines(x, y);
-      if (count > 0) el.textContent = count;
-    }
-
-    function countMines(x, y) {
-      let total = 0;
-      for (let dx = -1; dx <= 1; dx++) {
-        for (let dy = -1; dy <= 1; dy++) {
-          let nx = x + dx;
-          let ny = y + dy;
-          if (nx >= 0 && nx < size && ny >= 0 && ny < size) {
-            if (board[nx][ny].mine) total++;
+        for (let x = -1; x <= 1; x++) {
+          for (let y = -1; y <= 1; y++) {
+            if (campo[i + x] && campo[i + x][j + y]) campo[i + x][j + y].vizinhos++;
           }
         }
       }
-      return total;
-    }
 
-    startGame();
+      for (let i = 0; i < tamanho; i++) {
+        for (let j = 0; j < tamanho; j++) {
+          const cel = document.createElement("button");
+          cel.classList.add("celula");
+          cel.addEventListener("click", () => revelar(i, j));
+          cel.addEventListener("contextmenu", e => {
+            e.preventDefault();
+            marcar(i, j, cel);
+          });
+          cel.addEventListener("touchstart", e => {
+            cel.touchTime = Date.now();
+          });
+          cel.addEventListener("touchend", e => {
+            const tempoToque = Date.now() - cel.touchTime;
+            if (tempoToque > 400) {
+              marcar(i, j, cel);
+            } else {
+              revelar(i, j);
+            }
+          });
+          tabuleiro.appendChild(cel);
+        }
+      }
+
+      timer = setInterval(() => {
+        tempo++;
+        document.getElementById("tempo").textContent = tempo;
+      }, 1000);
+    };
+
+    const marcar = (i, j, cel) => {
+      if (campo[i][j].revelado) return;
+      campo[i][j].bandeira = !campo[i][j].bandeira;
+      cel.classList.toggle("bandeira");
+      minasRestantes += campo[i][j].bandeira ? -1 : 1;
+      document.getElementById("minas").textContent = minasRestantes;
+    };
+
+    const revelar = (i, j) => {
+      const cel = document.getElementById("tabuleiro").children[i * tamanho + j];
+      const pos = campo[i][j];
+      if (pos.revelado || pos.bandeira) return;
+
+      pos.revelado = true;
+      cel.classList.add("revelada");
+
+      if (pos.bomba) {
+        cel.textContent = "💣";
+        cel.classList.add("bomba");
+        fimDeJogo(false);
+        return;
+      }
+
+      reveladas++;
+      if (pos.vizinhos > 0) {
+        cel.textContent = pos.vizinhos;
+      } else {
+        for (let x = -1; x <= 1; x++) {
+          for (let y = -1; y <= 1; y++) {
+            if (campo[i + x] && campo[i + x][j + y]) revelar(i + x, j + y);
+          }
+        }
+      }
+
+      if (reveladas === tamanho * tamanho - bombas) {
+        fimDeJogo(true);
+      }
+    };
+
+    const fimDeJogo = (vitoria) => {
+      clearInterval(timer);
+      document.getElementById("status").style.color = vitoria ? "green" : "red";
+      document.getElementById("status").textContent = vitoria
+        ? `🎉 Você venceu! Tempo: ${tempo}s`
+        : `💥 Você perdeu! Tempo: ${tempo}s`;
+      const botoes = document.querySelectorAll(".celula");
+      botoes.forEach(b => b.onclick = null);
+    };
+
+    iniciar();
   </script>
-
 </body>
 </html>
